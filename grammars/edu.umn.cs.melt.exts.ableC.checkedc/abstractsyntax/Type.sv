@@ -1,6 +1,19 @@
 grammar edu:umn:cs:melt:exts:ableC:checkedc:abstractsyntax;
 
-import edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
+imports silver:langutil;
+imports silver:langutil:pp;
+
+imports edu:umn:cs:melt:ableC:abstractsyntax:host hiding checkedPtrType;
+imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
+imports edu:umn:cs:melt:ableC:abstractsyntax:env;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
+--imports edu:umn:cs:melt:ableC:abstractsyntax:debug;
+
+imports edu:umn:cs:melt:exts:ableC:templating;
+imports edu:umn:cs:melt:exts:ableC:string;
+imports edu:umn:cs:melt:exts:ableC:constructor;
+
+
 
 abstract production checkedPtrTypeExpr
 top::BaseTypeExpr ::= q::Qualifiers sub::TypeName loc::Location
@@ -16,55 +29,14 @@ top::BaseTypeExpr ::= q::Qualifiers sub::TypeName loc::Location
 
   sub.env = globalEnv(top.env);
 
-  -- local localErrors::[Message] =
-  --   sub.errors ++ checkVectorHeaderDef("_vector_s", loc, top.env);
+  local localErrors::[Message] =
+    sub.errors; -- ++ checkVectorHeaderDef("_vector_s", loc, top.env)
 
   forwards to
     if !null(localErrors)
     then errorTypeExpr(localErrors)
-    else
-      -- injectGlobalDeclsTypeExpr(
-      --   foldDecl(
-      --     sub.decls ++
-
-      --     [templateTypeExprInstDecl(
-      --       q, name("_vector_s", location=builtin),
-      --       consTemplateArg(typeTemplateArg(sub.typerep), nilTemplateArg()))]
-      --       ),
-        extTypeExpr(q, checkedPtrType(sub.typerep)));
+    else extTypeExpr(q, checkedPtrType(sub.typerep));
 }
-
-
--- abstract production vectorTypeExpr
--- top::BaseTypeExpr ::= q::Qualifiers sub::TypeName loc::Location
--- {
---   top.pp = pp"${terminate(space(), q.pps)}vector<${sub.pp}>";
-
---   top.inferredArgs := sub.inferredArgs;
---   sub.argumentType =
---     case top.argumentType of
---     | extType(_, vectorType(t)) -> t
---     | _ -> errorType()
---     end;
-
---   sub.env = globalEnv(top.env);
-
---   local localErrors::[Message] =
---     sub.errors ++ checkVectorHeaderDef("_vector_s", loc, top.env);
-
---   forwards to
---     if !null(localErrors)
---     then errorTypeExpr(localErrors)
---     else
---       injectGlobalDeclsTypeExpr(
---         foldDecl(
---           sub.decls ++
---           [templateTypeExprInstDecl(
---             q, name("_vector_s", location=builtin),
---             consTemplateArg(typeTemplateArg(sub.typerep), nilTemplateArg()))]),
---         extTypeExpr(q, vectorType(sub.typerep)));
--- }
-
 
 abstract production addCheckedPtr
 top::Expr ::= e1::Expr e2::Expr
@@ -72,11 +44,12 @@ top::Expr ::= e1::Expr e2::Expr
   top.pp = pp"${e1.pp} + ${e2.pp}";
 
   local subType::Type = checkedPtrSubType(e1.typerep);
+
   local localErrors::[Message] =
-     e1.errors ++ e2.errors ++
-     checkVectorHeaderDef("copy_vector", top.location, top.env) ++
-     checkVectorType(subType, e1.typerep, "concat", top.location) ++
-     checkVectorType(subType, e2.typerep, "concat", top.location);
+     e1.errors ++ e2.errors;
+     -- checkVectorHeaderDef("copy_vector", top.location, top.env) ++
+     -- checkVectorType(subType, e1.typerep, "concat", top.location) ++
+     -- checkVectorType(subType, e2.typerep, "concat", top.location);
 
   local fwrd::Expr = addExpr(e1, e2, location=builtin);
 
@@ -103,8 +76,8 @@ top::ExtType ::= sub::Type
       end;
 
   -- TODO: Figure out what these mean
-  top.lAddProd = just(addCheckedPtr(_, _, location=_));
-  top.rAddProd = just(addCheckedPtr(_, _, location=_));
+  -- top.lAddProd = just(addCheckedPtr(_, _, location=_));
+  -- top.rAddProd = just(addCheckedPtr(_, _, location=_));
   -- Overload for += automatically inferred from above
   -- top.lEqualsProd = just(equalsVector(_, _, location=_));
   -- top.rEqualsProd = just(equalsVector(_, _, location=_));
