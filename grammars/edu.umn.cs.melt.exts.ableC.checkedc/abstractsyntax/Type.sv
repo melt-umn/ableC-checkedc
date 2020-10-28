@@ -88,7 +88,9 @@ top::Expr ::= lhs::Expr rhs::Expr
 
   -- local fwrd::Expr = ableC_Expr {$Expr{lhs} = $Expr{rhs};};
 
-  local fwrd::Expr = eqExpr(lhs, decExpr(rhs, location=builtin), location=builtin);
+
+  local fwrd::Expr = eqExpr(lhs, rhs, location=builtin);
+  -- local fwrd::Expr = subType.exprInitProd(lhs, rhs);
 
 
   forwards to mkErrorCheck(localErrors, fwrd);
@@ -98,7 +100,15 @@ top::Expr ::= lhs::Expr rhs::Expr
 abstract production initCheckedPtr
 top::Initializer ::= e::Expr
 {
-  forwards to exprInitializer(decExpr(e, location=builtin), location=top.location);
+
+  local subType::Type = e.typerep;
+  local subTypeName::TypeName = typeName(directTypeExpr(subType), baseTypeExpr());
+  forwards to exprInitializer(
+                explicitCastExpr(
+                        typeName(directTypeExpr(e.typerep), modifiedTypeExpr(checkedPtrTypeExpr(foldQualifier(e.typerep.qualifiers), subTypeName, top.location)))
+                        ,e
+                        ,location=builtin),
+                        location=builtin);
 }
 
 
@@ -142,43 +152,7 @@ top::ExtType ::= sub::Type
 
 }
 
--- abstract production vectorType
--- top::ExtType ::= sub::Type
--- {
---   propagate canonicalType;
---   top.pp = pp"vector<${sub.lpp}${sub.rpp}>";
---   top.host = pointerType(top.givenQualifiers,sub);
---   top.mangledName = s"vector_${sub.mangledName}_";
---   top.isEqualTo =
---     \ other::ExtType ->
---       case other of
---         vectorType(otherSub) -> compatibleTypes(sub, otherSub, false, false)
---       | _ -> false
---       end;
-
---   -- TODO: Figure out what these mean
---   -- top.newProd = just(newVector(sub, _, location=_));
---   -- top.deleteProd = just(deleteVector(_));
---   top.lAddProd = just(concatVector(_, _, location=_));
---   top.rAddProd = just(concatVector(_, _, location=_));
---   -- Overload for += automatically inferred from above
---   top.lEqualsProd = just(equalsVector(_, _, location=_));
---   top.rEqualsProd = just(equalsVector(_, _, location=_));
---   -- Overload for != automatically inferred from above
---   top.addressOfArraySubscriptProd = just(addressOfSubscriptVector(_, _, location=_));
---   -- Overloads for [], []= automatically inferred from above
---   top.callMemberProd = just(callMemberVector(_, _, _, _, location=_));
---   top.memberProd = just(memberVector(_, _, _, location=_));
-
---   -- top.showErrors =
---   --   \ l::Location env::Decorated Env ->
---   --     sub.showErrors(l, env) ++
---   --     checkVectorHeaderDef("show_vector", l, env);
---   -- top.showProd =
---   --   \ e::Expr -> ableC_Expr { inst show_vector<$directTypeExpr{sub}>($Expr{e}) };
--- }
-
--- Find the sub-type of a vector type
+-- Find the sub-type of a checked ptr type
 function checkedPtrSubType
 Type ::= t::Type
 {
