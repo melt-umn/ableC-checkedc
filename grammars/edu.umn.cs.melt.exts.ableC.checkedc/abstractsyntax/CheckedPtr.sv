@@ -49,22 +49,23 @@ top::Expr ::= lhs::Expr rhs::Expr
 {
   top.pp = pp"${lhs.pp} = ${rhs.pp}";
 
-  -- local pSubType::Type = ptrSubType(rhs.typerep);
-  -- local ptrSubTypeName::TypeName = typeName(directTypeExpr(pSubType), baseTypeExpr());
+  local pSubType::Type = ptrSubType(rhs.typerep);
+  local ptrSubTypeName::TypeName = typeName(directTypeExpr(pSubType), baseTypeExpr());
   local subType::Type = checkedPtrSubType(lhs.typerep);
+
   -- local q::Qualifiers = checkedPtrQualifiers(lhs.typerep);
   -- local regPointerType::Type = pointerType(q,pSubType);
   -- local checkedPointerType::ExtType = checkedPtrType(subType);
   -- local typeExpr::Expr = checkedPtrTypeExpr(foldQualifier(rhs.typerep.qualifiers),
   --                                                   ptrSubTypeName,
   --                                                   top.location);
-  -- local castExpr::Expr = explicitCastExpr(
-  --                       typeName(checkedPtrTypeExpr(foldQualifier(rhs.typerep.qualifiers),
-  --                                                   ptrSubTypeName,
-  --                                                   top.location)
-  --                                baseTypeExpr()),
-  --                       rhs,
-  --                       location=builtin);
+  local castExpr::Expr = explicitCastExpr(
+                         typeName(checkedPtrTypeExpr(foldQualifier(rhs.typerep.qualifiers),
+                                                     ptrSubTypeName,
+                                                     top.location),
+                                  baseTypeExpr()),
+                         rhs,
+                         location=builtin);
   -- local typeExpr::Expr = BaseTypeExpr(directTypeExpr(regPointerType));
 
 
@@ -80,7 +81,7 @@ top::Expr ::= lhs::Expr rhs::Expr
 
   local fwrd::Expr =
     ableC_Expr {
-      ($Expr{lhs} = $Expr{rhs}
+      ($Expr{lhs} = $Expr{castExpr}
       )
 
     };
