@@ -3,10 +3,11 @@ grammar edu:umn:cs:melt:exts:ableC:checkedc:abstractsyntax;
 imports silver:langutil;
 imports silver:langutil:pp;
 
-imports edu:umn:cs:melt:ableC:abstractsyntax:host hiding checkedPtrType;
+imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
-imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable hiding exprInitializer, eqExpr;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
 --imports edu:umn:cs:melt:ableC:abstractsyntax:debug;
 
 imports edu:umn:cs:melt:exts:ableC:templating;
@@ -38,78 +39,7 @@ top::BaseTypeExpr ::= q::Qualifiers sub::TypeName loc::Location
     else extTypeExpr(q, checkedPtrType(sub.typerep));
 }
 
-abstract production addCheckedPtr
-top::Expr ::= e1::Expr e2::Expr
-{
-  top.pp = pp"${e1.pp} + ${e2.pp}";
 
-
-  local localErrors::[Message] =
-     e1.errors ++ e2.errors ++
-     [err(e1.location, s"Arithmetic on Checked pointer not allowed.")];
-
-  local fwrd::Expr = errorExpr(localErrors, location=builtin);
-
-  forwards to mkErrorCheck(localErrors, fwrd);
-}
-
-
-abstract production equalsCheckedPtr
-top::Expr ::= e1::Expr e2::Expr
-{
-  top.pp = pp"${e1.pp} + ${e2.pp}";
-
-  local subType::Type = checkedPtrSubType(e1.typerep);
-
-  local localErrors::[Message] =
-     e1.errors ++ e2.errors;
-     -- checkVectorHeaderDef("copy_vector", top.location, top.env) ++
-     -- checkVectorType(subType, e1.typerep, "concat", top.location) ++
-     -- checkVectorType(subType, e2.typerep, "concat", top.location);
-
-  local fwrd::Expr = addExpr(e1, e2, location=builtin);
-
-  forwards to mkErrorCheck(localErrors, fwrd);
-}
-
-
-abstract production assignCheckedPtr
-top::Expr ::= lhs::Expr rhs::Expr
-{
-  top.pp = pp"${lhs.pp} = ${rhs.pp}";
-
-  local subType::Type = checkedPtrSubType(lhs.typerep);
-
-  local localErrors::[Message] =
-     lhs.errors ++ rhs.errors;
-
-  -- local fwrd::Expr = eqExpr(lhs, pointerExpr(rhs, location=builtin)
-  --                              ,location=builtin);
-
-  -- local fwrd::Expr = ableC_Expr {$Expr{lhs} = $Expr{rhs};};
-
-
-  local fwrd::Expr = eqExpr(lhs, rhs, location=builtin);
-  -- local fwrd::Expr = subType.exprInitProd(lhs, rhs);
-
-
-  forwards to mkErrorCheck(localErrors, fwrd);
-}
-
-
-abstract production initCheckedPtr
-top::Initializer ::= e::Expr
-{
-
-  local subType::Type = e.typerep;
-  local subTypeName::TypeName = typeName(directTypeExpr(subType), baseTypeExpr());
-  forwards to exprInitializer(
-                explicitCastExpr(
-                        typeName(directTypeExpr(e.typerep), modifiedTypeExpr(checkedPtrTypeExpr(foldQualifier(e.typerep.qualifiers), subTypeName, top.location)))
-                        ,e
-                        ,location=builtin),
-                        location=builtin);
-}
 
 
 
@@ -129,13 +59,16 @@ top::ExtType ::= sub::Type
 
 
    top.lEqProd = just(assignCheckedPtr(_, _, location=_));
-  -- TODO: Figure out what these mean
    top.lAddProd = just(addCheckedPtr(_, _, location=_));
    top.rAddProd = just(addCheckedPtr(_, _, location=_));
   -- Overload for += automatically inferred from above
-   top.lEqualsProd = just(equalsCheckedPtr(_, _, location=_));
-   top.rEqualsProd = just(equalsCheckedPtr(_, _, location=_));
+   --top.lEqualsProd = just(equalsCheckedPtr(_, _, location=_));
+   --top.rEqualsProd = just(equalsCheckedPtr(_, _, location=_));
    top.exprInitProd = just(initCheckedPtr(_, location=_));
+   -- top.dereferenceProd = just(ovrld:pointerType.dereferenceProd(_, location=_));
+   top.dereferenceProd = just(dereferenceCheckedPtr(_, location=_));
+   -- top.dereferenceProd = top.host.dereferenceProd;
+  -- top.addressOfProd = just(addrOfCheckedPtr(_,location=_));
   -- Overload for != automatically inferred from above
   -- top.addressOfArraySubscriptProd = just(addressOfSubscriptVector(_, _, location=_));
   -- Overloads for [], []= automatically inferred from above
@@ -152,13 +85,3 @@ top::ExtType ::= sub::Type
 
 }
 
--- Find the sub-type of a checked ptr type
-function checkedPtrSubType
-Type ::= t::Type
-{
-  return
-    case t of
-      extType(_, checkedPtrType(sub)) -> sub
-    | _ -> errorType()
-    end;
-}
