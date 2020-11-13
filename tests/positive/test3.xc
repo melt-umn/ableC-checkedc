@@ -8,6 +8,6 @@ int main(void)
     ptr<int> x2 = &x;
     ptr<int> y2 = &y;
     ptr<int> x3 = &x;
-    printf("two equivalent ptrs compare: %d\ntwo different ptrs compare: %d\n", (x2 == x3),(x2 == y2));
+    printf("two equivalent ptrs compare: %d\ntwo different ptrs compare: %d\ncompare to null:%d\n", (x2 == x3),(x2 == y2), (x2 == 0));
     return 0;
 }
